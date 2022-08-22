@@ -26,16 +26,15 @@ The official implementation of [ACMMM2022] Pay Attention to Your Positive Pairs:
 
 ### Training on CIFAR-100
 
-- Download the `cifar_teachers.tar` at <https://github.com/megvii-research/mdistiller/releases/tag/checkpoints> and untar it to `./download_ckpts` via `tar xvf cifar_teachers.tar`.
+- Download the `cifar_teachers.tar` at <https://github.com/smuelpeng/PACKD/releases/tag/checkpoints> and untar it to `./save_t` via `tar xf save_t.tar`.
 
   ```bash
-  # for instance, our DKD method.
-  python3 tools/train.py --cfg configs/cifar100/dkd/res32x4_res8x4.yaml
+  # Training basleine.
+  sh scripts/run_vanilla.sh
 
-  # you can also change settings at command line
-  python3 tools/train.py --cfg configs/cifar100/dkd/res32x4_res8x4.yaml SOLVER.BATCH_SIZE 128 SOLVER.LR 0.1
+  # Distillation method.
+  sh scripts/run_distill.sh
   ```
-
 
 # Citation
 

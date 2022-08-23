@@ -1,5 +1,5 @@
 # PACKD
-The official implementation of [ACMMM2022] Pay Attention to Your Positive Pairs: Positive Pair Aware Contrastive Knowledge Distillation
+The official implementation of [ACMMM2022] Pay Attention to Your Positive Pairs: Positive Pair Aware Contrastive Knowledge Distillation [pdf](".github/camera-ready-mmfp2140.pdf")
 
 # Positive pair Aware Contrastive Knowledge Distillation
 

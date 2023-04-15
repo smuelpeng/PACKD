@@ -3,10 +3,7 @@ import torch.nn as nn
 
 
 
-__all__ = ['resnet18_imagenet', 'resnet18_imagenet_aux', 'resnet34_imagenet',
-           'resnet34_imagenet_aux', 'resnet50_imagenet','resnet50_imagenet_aux']
-
-
+__all__ = ['resnet18_imagenet', 'resnet34_imagenet',]
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -199,131 +196,17 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         f3 = x
         x = self.layer4(x)
-        f4 = x
-
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        f4 = x
         x = self.fc(x)
-
         if is_feat:
             return [f1, f2, f3, f4], x
         else:
             return x
 
-
-class Auxiliary_Classifier(nn.Module):
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
-                 groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
-        super(Auxiliary_Classifier, self).__init__()
-        
-        self.dilation = 1
-        self.groups = groups
-        self.base_width = width_per_group
-        self.inplanes = 64 * block.expansion
-        self.block_extractor1 = nn.Sequential(*[self._make_layer(block, 128, layers[1], stride=2),
-                                                self._make_layer(block, 256, layers[2], stride=2),
-                                                self._make_layer(block, 512, layers[3], stride=2)])
-
-        self.inplanes = 128 * block.expansion
-        self.block_extractor2 = nn.Sequential(*[self._make_layer(block, 256, layers[2], stride=2),
-                                                self._make_layer(block, 512, layers[3], stride=2)])
-
-        self.inplanes = 256 * block.expansion
-        self.block_extractor3 = nn.Sequential(*[self._make_layer(block, 512, layers[3], stride=2)])
-
-        self.inplanes = 512 * block.expansion
-        self.block_extractor4 = nn.Sequential(*[self._make_layer(block, 512, layers[3], stride=1)])
-
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc2 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc3 = nn.Linear(512 * block.expansion, num_classes)
-        self.fc4 = nn.Linear(512 * block.expansion, num_classes)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
-        norm_layer = nn.BatchNorm2d
-        downsample = None
-        previous_dilation = self.dilation
-        if dilate:
-            self.dilation *= stride
-            stride = 1
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
-            )
-
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
-        self.inplanes = planes * block.expansion
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
-
-        return nn.Sequential(*layers)
-
-
-    def forward(self, x):
-        ss_logits = []
-        for i in range(len(x)):
-            idx = i + 1
-            
-            out = getattr(self, 'block_extractor'+str(idx))(x[i])
-            out = self.avg_pool(out)
-            out = out.view(out.size(0), -1)
-            out = getattr(self, 'fc'+str(idx))(out)
-            ss_logits.append(out)
-        return ss_logits
-
-
-class ResNet_Auxiliary(nn.Module):
-    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False):
-        super(ResNet_Auxiliary, self).__init__()
-        self.backbone = ResNet(block, layers, num_classes=num_classes, zero_init_residual=zero_init_residual)
-        self.auxiliary_classifier = Auxiliary_Classifier(block, layers, num_classes=num_classes*4, zero_init_residual=zero_init_residual)
-        
-    def forward(self, x, grad=False):
-        if grad is False:
-            feats, logit = self.backbone(x, is_feat=True)
-            for i in range(len(feats)):
-                feats[i] = feats[i].detach()
-        else:
-            feats, logit = self.backbone(x, is_feat=True)
-            
-        ss_logits = self.auxiliary_classifier(feats)
-        return logit, ss_logits
-
-
 def resnet18_imagenet(**kwargs):
     return ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
 
-def resnet18_imagenet_aux(**kwargs):
-    return ResNet_Auxiliary(BasicBlock, [2, 2, 2, 2], **kwargs)
-
 def resnet34_imagenet(**kwargs):
     return ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
-def resnet34_imagenet_aux(**kwargs):
-    return ResNet_Auxiliary(BasicBlock, [3, 4, 6, 3], **kwargs)
-
-def resnet50_imagenet(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
-
-def resnet50_imagenet_aux(**kwargs):
-    return ResNet_Auxiliary(Bottleneck, [3, 4, 6, 3], **kwargs)
-
-
-if __name__ == '__main__':
-    net = resnet34_imagenet_aux(num_classes=1000)
-    from utils import cal_param_size, cal_multi_adds
-    print('Params: %.2fM, Multi-adds: %.3fM'
-          % (cal_param_size(net) / 1e6, cal_multi_adds(net, (2, 3, 224, 224)) / 1e6))

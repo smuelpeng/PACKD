@@ -115,7 +115,7 @@ def main():
     net = getattr(models, args.arch)(num_classes=num_classes)
     net.eval()
     print('Student Arch: %s, Params: %.2fM, Multi-adds: %.2fG'
-        % (args.tarch, cal_param_size(net)/1e6, cal_multi_adds(net, (1, 3, 224, 224))/1e9))
+        % (args.arch, cal_param_size(net)/1e6, cal_multi_adds(net, (1, 3, 224, 224))/1e9))
     del(net)
 
     args.distributed = args.multiprocessing_distributed
@@ -380,11 +380,11 @@ def main_worker(gpu, ngpus_per_node, args):
         start_epoch = checkpoint['epoch']
         test(start_epoch, criterion_cls, net) 
     else:
-        print('Evaluate Teacher:')
-        acc = test(0, criterion_cls, tnet)
-        print('teacher accuracy:{}'.format(acc))
-        with open(args.log_txt, 'a+') as f:
-            f.write('teacher accuracy:{}'.format(acc))
+        #print('Evaluate Teacher:')
+        #acc = test(0, criterion_cls, tnet)
+        #print('teacher accuracy:{}'.format(acc))
+        #with open(args.log_txt, 'a+') as f:
+        #    f.write('teacher accuracy:{}'.format(acc))
         for epoch in range(start_epoch, args.epochs):
             train_sampler.set_epoch(epoch)
             train(epoch, criterion_list, optimizer) 
